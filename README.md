@@ -10,6 +10,32 @@ MCP (Model Context Protocol) tools for context management in AI coding agents. H
 - **Session Checkpoint** - Save/restore session state
 - **Smart File Loader** - Load files with relevance filtering
 
+## Agent Skill (Recommended)
+
+For optimal agent performance, use the included **`SKILL.md`** file as agent instructions. This skill teaches agents to:
+
+- **Minimize context window usage** - Free up RAM by offloading data to persistent storage
+- **Auto-save progress** - Checkpoint every 10-15 messages
+- **Track decisions & changes** - Maintain project history
+- **Handle long sessions** - Seamless handoff to new sessions when context gets full
+
+### How to Use the Skill
+
+**Option 1: Claude Code / Cline / Cursor**
+Place `SKILL.md` in your project root or reference it in your agent configuration.
+
+**Option 2: Custom Agents**
+Include the content of `SKILL.md` in your system prompt or agent instructions.
+
+**Option 3: Direct Reference**
+Tell your agent: *"Load and follow the instructions in SKILL.md"*
+
+The skill provides:
+- Mandatory triggers for when to use each tool
+- Context cleanup strategies to reduce LLM memory usage
+- Best practices for minimal context consumption
+- Complete tool reference with examples
+
 ## Installation
 
 Requires Node.js >= 18.0.0
@@ -241,7 +267,7 @@ To specify a custom path for storing context data, add environment variables.
 
 | Prompt | Description |
 |--------|-------------|
-| `ctx-init` | Load context from previous session |
+| `ctx-init` | Load context from previous session with context management instructions |
 | `ctx-save` | Save current state to checkpoint |
 | `ctx-remember` | Save important info to memory |
 | `ctx-todo` | Add a todo item |
@@ -249,6 +275,8 @@ To specify a custom path for storing context data, add environment variables.
 | `ctx-status` | Show project status |
 | `ctx-compress` | Compress long context |
 | `ctx-recall` | Search in memory |
+| `ctx-cleanup` | **Free up context window space and reduce RAM usage** |
+| `ctx-handoff` | **Generate handoff document for new session** |
 
 ## Available Tools (31 tools)
 

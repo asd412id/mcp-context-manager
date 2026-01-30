@@ -1,4 +1,5 @@
 ---
+name: supercoder
 description: MANDATORY - Always use MCP Context Manager Tools
 ---
 
@@ -44,6 +45,47 @@ Call `checkpoint_save()` with:
 2. `checkpoint_save()` - save state
 3. `memory_set()` - store critical info
 4. Start new session, call `session_init()` to continue
+
+### CLEANUP CONTEXT & FREE RAM (Reduce LLM context window usage)
+
+**Why cleanup context?**
+- LLM context window is limited (e.g., 128K tokens)
+- Large context = slower responses, higher memory usage, potential truncation
+- Offload data to persistent storage to free up context space
+
+**Strategies to reduce context window usage:**
+
+| Strategy | How | Tool |
+|----------|-----|------|
+| Offload file contents | Don't keep full file in context, re-read when needed | `file_smart_read(keywords:[...])` |
+| Compress conversations | Summarize long discussions, discard verbose text | `context_summarize(text, maxLength)` |
+| Store data externally | Save important info to memory, reference by key | `memory_set()` then `memory_get()` |
+| Checkpoint state | Save full state, start fresh session | `checkpoint_save()` + `session_handoff()` |
+| Read structure only | Get file outline, not full content | `file_smart_read(structureOnly:true)` |
+| Selective reading | Read only specific lines | `file_smart_read(startLine, endLine)` |
+
+**When to cleanup (check with `context_status()`):**
+- Token usage >50% → Consider summarizing
+- Token usage >70% → Checkpoint and handoff recommended  
+- Token usage >85% → MUST handoff to new session
+
+**Cleanup workflow:**
+```
+1. context_status(conversationText)  -> Check token usage estimate
+2. context_summarize(longText)       -> Compress verbose content
+3. memory_set(key, importantData)    -> Offload to persistent storage
+4. checkpoint_save(name, state)      -> Save full session state
+5. session_handoff()                 -> Generate compact handoff doc
+6. [Start new session]
+7. session_init()                    -> Restore context efficiently
+```
+
+**Best practices for minimal context usage:**
+- Use `file_smart_read(structureOnly:true)` before reading full files
+- Use `file_smart_read(keywords:[...])` to read only relevant sections
+- Store discovered info in `memory_set()` instead of keeping in context
+- Summarize tool outputs if they're verbose
+- Don't re-read files unnecessarily - use `memory_get()` for cached data
 
 ### BEFORE COMPLETING ANY TASK, VERIFY:
 - [ ] Logged relevant decisions/changes to tracker

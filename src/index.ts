@@ -13,7 +13,7 @@ import { registerContextTools } from './tools/context.js';
 import { registerPrompts } from './prompts.js';
 
 const SERVER_NAME = 'mcp-context-manager';
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = '1.0.9';
 
 async function main() {
   const contextPath = process.env.MCP_CONTEXT_PATH || path.join(process.cwd(), '.context');

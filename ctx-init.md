@@ -66,6 +66,7 @@ Call `checkpoint_save()` with:
 |------|-------------|
 | `memory_set(key, value, tags?, ttl?)` | Store info. TTL in ms for auto-expiry |
 | `memory_get(key)` | Retrieve info by key |
+| `memory_update(key, value, merge?)` | Partially update/merge existing memory value. merge:true (default) deep merges objects |
 | `memory_search(pattern?, tags?)` | Find memories. Pattern: `api.*` matches `api.users` |
 | `memory_list()` | List all memory keys with tags |
 | `memory_delete(key)` | Delete a memory entry |
@@ -163,6 +164,15 @@ checkpoint_save(
 ```
 context_status()      // Storage and config info
 store_health()        // File integrity check
+```
+
+### Update Memory Partially
+```
+// Deep merge objects (default)
+memory_update(key: "config", value: { newField: "value" })
+
+// Replace value entirely
+memory_update(key: "config", value: { replaced: true }, merge: false)
 ```
 
 $ARGUMENTS

@@ -22,10 +22,19 @@ const MEMORY_FILE = 'memory.json';
 
 async function getMemoryStore(): Promise<MemoryStore> {
   const store = getStore();
-  const data = await store.read<MemoryStore>(MEMORY_FILE, { version: STORAGE_VERSION, entries: {} });
-  // Ensure version field exists for old stores
-  if (!data.version) data.version = STORAGE_VERSION;
-  return data;
+  try {
+    const data = await store.read<MemoryStore>(MEMORY_FILE, { version: STORAGE_VERSION, entries: {} });
+    // Ensure version field exists for old stores
+    if (!data.version) data.version = STORAGE_VERSION;
+    // Ensure entries is an object
+    if (!data.entries || typeof data.entries !== 'object') {
+      data.entries = {};
+    }
+    return data;
+  } catch (error) {
+    console.error('[Memory] Error reading memory store, resetting:', (error as Error).message);
+    return { version: STORAGE_VERSION, entries: {} };
+  }
 }
 
 async function saveMemoryStore(data: MemoryStore): Promise<void> {
@@ -68,6 +77,33 @@ export async function cleanupExpiredMemories(): Promise<number> {
   }
   
   return removed;
+}
+
+// Deep merge utility for objects
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...target };
+  
+  for (const key of Object.keys(source)) {
+    const sourceVal = source[key];
+    const targetVal = result[key];
+    
+    if (Array.isArray(sourceVal) && Array.isArray(targetVal)) {
+      // Concat arrays
+      result[key] = [...targetVal, ...sourceVal];
+    } else if (
+      typeof sourceVal === 'object' && sourceVal !== null &&
+      typeof targetVal === 'object' && targetVal !== null &&
+      !Array.isArray(sourceVal) && !Array.isArray(targetVal)
+    ) {
+      // Recursive merge for nested objects
+      result[key] = deepMerge(targetVal as Record<string, unknown>, sourceVal as Record<string, unknown>);
+    } else {
+      // Override with source value
+      result[key] = sourceVal;
+    }
+  }
+  
+  return result;
 }
 
 export function registerMemoryTools(server: McpServer): void {
@@ -337,6 +373,61 @@ WHEN TO USE:
           text: removed > 0 
             ? `Cleaned up ${removed} expired memories`
             : 'No expired memories to clean up'
+        }]
+      };
+    }
+  );
+
+  server.registerTool(
+    'memory_update',
+    {
+      title: 'Memory Update',
+      description: `Partially update an existing memory value (merge objects or replace).
+WHEN TO USE:
+- To update specific fields in a stored object without losing other data
+- To append to existing arrays
+- When you only want to modify part of a memory value`,
+      inputSchema: {
+        key: z.string().describe('Key of memory to update'),
+        value: z.unknown().describe('Value to merge/update with'),
+        merge: z.boolean().optional().describe('If true, deep merge objects. If false, replace value entirely (default: true)')
+      }
+    },
+    async ({ key, value, merge = true }) => {
+      const memStore = await getMemoryStore();
+      const entry = memStore.entries[key];
+      
+      if (!entry) {
+        return {
+          content: [{ type: 'text', text: `Memory not found: "${key}"` }]
+        };
+      }
+      
+      if (isExpired(entry)) {
+        delete memStore.entries[key];
+        await saveMemoryStore(memStore);
+        return {
+          content: [{ type: 'text', text: `Memory expired: "${key}"` }]
+        };
+      }
+      
+      const now = new Date().toISOString();
+      
+      if (merge && typeof entry.value === 'object' && entry.value !== null && typeof value === 'object' && value !== null) {
+        // Deep merge objects
+        entry.value = deepMerge(entry.value as Record<string, unknown>, value as Record<string, unknown>);
+      } else {
+        // Replace value entirely
+        entry.value = value;
+      }
+      
+      entry.updatedAt = now;
+      await saveMemoryStore(memStore);
+      
+      return {
+        content: [{ 
+          type: 'text', 
+          text: `Memory updated: "${key}"${merge ? ' (merged)' : ' (replaced)'}`
         }]
       };
     }

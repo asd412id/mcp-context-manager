@@ -169,7 +169,8 @@ async function getMemoryList(): Promise<unknown> {
   
   const entries = Object.values(memStore.entries).filter(e => {
     if (!e.ttl) return true;
-    const expiresAt = new Date(e.createdAt).getTime() + e.ttl;
+    // Use updatedAt for TTL calculation (TTL resets on update)
+    const expiresAt = new Date(e.updatedAt).getTime() + e.ttl;
     return Date.now() <= expiresAt;
   });
   

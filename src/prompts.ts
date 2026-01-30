@@ -14,10 +14,7 @@ export function registerPrompts(server: McpServer): void {
         role: 'user',
         content: {
           type: 'text',
-          text: `Load previous context:
-1. checkpoint_load() - get last state
-2. tracker_status() - see todos & decisions
-3. memory_list() - check saved data`
+          text: `Initialize session with session_init() - loads checkpoint, tracker status, memories, and detects project in one call.`
         }
       }]
     })

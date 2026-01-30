@@ -250,7 +250,7 @@ To specify a custom path for storing context data, add environment variables.
 | `ctx-compress` | Compress long context |
 | `ctx-recall` | Search in memory |
 
-## Available Tools (29 tools)
+## Available Tools (30 tools)
 
 ### Session Management
 
@@ -266,6 +266,7 @@ To specify a custom path for storing context data, add environment variables.
 |------|-------------|
 | `memory_set` | Store key-value in memory |
 | `memory_get` | Retrieve value from memory |
+| `memory_update` | Partially update/merge existing memory value |
 | `memory_search` | Search memory by pattern/tags |
 | `memory_delete` | Delete memory entry |
 | `memory_list` | List all memory keys |

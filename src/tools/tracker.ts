@@ -32,9 +32,18 @@ const TRACKER_FILE = 'tracker.json';
 
 async function getTrackerStore(): Promise<TrackerStore> {
   const store = getStore();
-  const data = await store.read<TrackerStore>(TRACKER_FILE, { version: STORAGE_VERSION, entries: [] });
-  if (!data.version) data.version = STORAGE_VERSION;
-  return data;
+  try {
+    const data = await store.read<TrackerStore>(TRACKER_FILE, { version: STORAGE_VERSION, entries: [] });
+    if (!data.version) data.version = STORAGE_VERSION;
+    // Ensure entries is an array
+    if (!Array.isArray(data.entries)) {
+      data.entries = [];
+    }
+    return data;
+  } catch (error) {
+    console.error('[Tracker] Error reading tracker store, resetting:', (error as Error).message);
+    return { version: STORAGE_VERSION, entries: [] };
+  }
 }
 
 async function saveTrackerStore(data: TrackerStore): Promise<void> {

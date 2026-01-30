@@ -31,7 +31,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/asd412id/mcp-context-manager.git"
+  },
+  "homepage": "https://github.com/asd412id/mcp-context-manager#readme",
+  "bugs": {
+    "url": "https://github.com/asd412id/mcp-context-manager/issues"
   },
   "engines": {
     "node": ">=18.0.0"

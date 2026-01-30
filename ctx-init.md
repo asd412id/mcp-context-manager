@@ -59,7 +59,7 @@ Call `checkpoint_save()` with:
 |------|-------------|
 | `session_init(cwd?)` | ONE call to load all context at session start. Returns checkpoint, tracker, memories, project info. |
 | `session_handoff(includeMemoryValues?, customNotes?)` | Generate compact markdown handoff for new session. Use when context >50% |
-| `project_detect(cwd?)` | Auto-detect project from package.json, .git, pyproject.toml, Cargo.toml |
+| `project_detect(cwd?)` | Auto-detect project (supports 20+ languages: Node, Python, Rust, Go, Java, PHP, Ruby, etc.) |
 
 ### Memory (persistent storage)
 | Tool | Description |
@@ -78,6 +78,7 @@ Call `checkpoint_save()` with:
 |------|-------------|
 | `tracker_log(type, content, tags?, metadata?)` | Log decision/change/todo/note/error |
 | `tracker_status(limit?)` | Get overview: decisions, pending todos, changes, errors |
+| `tracker_get(id)` | Get specific tracker entry by ID |
 | `tracker_todo_update(id, status)` | Mark todo as done/cancelled/pending |
 | `tracker_search(type?, tags?, query?, limit?)` | Search tracker entries |
 | `tracker_set_project(name)` | Set project name |

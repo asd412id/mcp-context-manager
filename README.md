@@ -250,7 +250,7 @@ To specify a custom path for storing context data, add environment variables.
 | `ctx-compress` | Compress long context |
 | `ctx-recall` | Search in memory |
 
-## Available Tools (30 tools)
+## Available Tools (31 tools)
 
 ### Session Management
 
@@ -258,7 +258,7 @@ To specify a custom path for storing context data, add environment variables.
 |------|-------------|
 | `session_init` | Initialize session - loads checkpoint, tracker, memories, detects project in ONE call |
 | `session_handoff` | Generate compact markdown handoff document for seamless session continuation |
-| `project_detect` | Auto-detect project info from package.json, .git, pyproject.toml, Cargo.toml |
+| `project_detect` | Auto-detect project info (supports 20+ languages: Node, Python, Rust, Go, Java, PHP, Ruby, Elixir, .NET, Swift, Kotlin, Dart, Haskell, Scala, Clojure, Lua, Zig, Nim, V, Deno, Bun) |
 
 ### Memory Store
 
@@ -290,6 +290,7 @@ To specify a custom path for storing context data, add environment variables.
 |------|-------------|
 | `tracker_log` | Log decision/change/todo/note/error |
 | `tracker_status` | Get project status overview |
+| `tracker_get` | Get specific tracker entry by ID |
 | `tracker_todo_update` | Update todo status |
 | `tracker_search` | Search tracker entries |
 | `tracker_set_project` | Set project name |

@@ -250,7 +250,15 @@ To specify a custom path for storing context data, add environment variables.
 | `ctx-compress` | Compress long context |
 | `ctx-recall` | Search in memory |
 
-## Available Tools (25 tools)
+## Available Tools (29 tools)
+
+### Session Management
+
+| Tool | Description |
+|------|-------------|
+| `session_init` | Initialize session - loads checkpoint, tracker, memories, detects project in ONE call |
+| `session_handoff` | Generate compact markdown handoff document for seamless session continuation |
+| `project_detect` | Auto-detect project info from package.json, .git, pyproject.toml, Cargo.toml |
 
 ### Memory Store
 
@@ -262,6 +270,7 @@ To specify a custom path for storing context data, add environment variables.
 | `memory_delete` | Delete memory entry |
 | `memory_list` | List all memory keys |
 | `memory_clear` | Clear memory (all/by tags) |
+| `memory_cleanup` | Remove expired memory entries |
 
 ### Context Summarizer
 
@@ -271,6 +280,8 @@ To specify a custom path for storing context data, add environment variables.
 | `context_get_summary` | Get summary by ID |
 | `context_list_summaries` | List all summaries |
 | `context_merge_summaries` | Merge multiple summaries |
+| `context_status` | Get storage stats and token usage estimate |
+| `store_health` | Check store integrity and recommendations |
 
 ### Project Tracker
 
@@ -282,6 +293,7 @@ To specify a custom path for storing context data, add environment variables.
 | `tracker_search` | Search tracker entries |
 | `tracker_set_project` | Set project name |
 | `tracker_export` | Export tracker as markdown |
+| `tracker_cleanup` | Clean old entries, keep most recent |
 
 ### Session Checkpoint
 
@@ -307,6 +319,10 @@ To specify a custom path for storing context data, add environment variables.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MCP_CONTEXT_PATH` | Path to store context data | `{cwd}/.context` |
+| `MCP_MAX_CHECKPOINTS` | Max checkpoints before auto-cleanup | `50` |
+| `MCP_MAX_SUMMARIES` | Max summaries before auto-cleanup | `100` |
+| `MCP_TRACKER_MAX_ENTRIES` | Max tracker entries before rotation | `1000` |
+| `MCP_TRACKER_ROTATE_KEEP` | Entries to keep after rotation | `800` |
 
 ## Usage Examples
 
@@ -334,17 +350,18 @@ AI: *creates checkpoint with current state*
 ### When Context Gets Long
 
 ```
-User: ctx-compress
-AI: *summarize conversation, save checkpoint, store key info*
+User: Generate handoff for new session
+AI: *runs session_handoff()* -> outputs compact markdown with all context
+AI: Start a new conversation and paste this handoff, then run session_init()
 ```
 
 ## Best Practices
 
-1. **Session start** - Always run `ctx-init` to load previous context
-2. **Save decisions** - Use `ctx-decide` for every important decision
-3. **Track todos** - Use `ctx-todo` for tasks to be done
-4. **Checkpoint regularly** - Run `ctx-save` every ~15-20 messages or after milestones
-5. **Compress when long** - Use `ctx-compress` if chat gets too long
+1. **Session start** - Always run `session_init()` to load previous context
+2. **Save decisions** - Use `tracker_log(type:"decision")` for important decisions
+3. **Track todos** - Use `tracker_log(type:"todo")` for tasks to be done
+4. **Checkpoint regularly** - Run `checkpoint_save()` every ~15-20 messages or after milestones
+5. **Handoff when long** - Use `session_handoff()` when context >50%, then start new session
 
 ## Data Storage
 

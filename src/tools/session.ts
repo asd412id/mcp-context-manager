@@ -182,6 +182,38 @@ async function getMemoryList(): Promise<unknown> {
   }));
 }
 
+// Get all memories with values (for handoff)
+async function getMemoriesWithValues(): Promise<Array<{ key: string; value: unknown; tags: string[] }>> {
+  const store = getStore();
+  const memStore = await store.read<{
+    entries: Record<string, {
+      key: string;
+      value: unknown;
+      tags: string[];
+      createdAt: string;
+      updatedAt: string;
+      ttl?: number;
+    }>;
+  }>('memory.json', { entries: {} });
+  
+  return Object.values(memStore.entries)
+    .filter(e => {
+      if (!e.ttl) return true;
+      const expiresAt = new Date(e.updatedAt).getTime() + e.ttl;
+      return Date.now() <= expiresAt;
+    })
+    .map(e => ({ key: e.key, value: e.value, tags: e.tags }));
+}
+
+// Get latest summary
+async function getLatestSummary(): Promise<{ id: string; context: string; keyPoints: string[]; decisions: string[]; actionItems: string[] } | null> {
+  const store = getStore().getSubStore('summaries');
+  const data = await store.read<{ summaries: Array<{ id: string; context: string; keyPoints: string[]; decisions: string[]; actionItems: string[] }> }>('index.json', { summaries: [] });
+  
+  if (data.summaries.length === 0) return null;
+  return data.summaries[data.summaries.length - 1];
+}
+
 export function registerSessionTools(server: McpServer): void {
   server.registerTool(
     'session_init',
@@ -268,6 +300,142 @@ Detects from: package.json, .git, pyproject.toml, Cargo.toml, or folder name.`,
             ? JSON.stringify(project, null, 2)
             : 'Could not detect project'
         }]
+      };
+    }
+  );
+
+  server.registerTool(
+    'session_handoff',
+    {
+      title: 'Session Handoff',
+      description: `Generate a compact handoff document for starting a new session.
+WHEN TO USE:
+- When context is getting long (>50% used)
+- Before starting a new conversation
+- To create a portable summary of current work state
+Returns: Markdown document with all essential context for seamless continuation.`,
+      inputSchema: {
+        includeMemoryValues: z.boolean().optional().describe('Include full memory values (default: true)'),
+        customNotes: z.string().optional().describe('Additional notes to include in handoff')
+      }
+    },
+    async ({ includeMemoryValues = true, customNotes }) => {
+      const workingDir = process.cwd();
+      
+      // Gather all context in parallel
+      const [checkpoint, tracker, memories, memoriesWithValues, latestSummary, project] = await Promise.all([
+        getCheckpointLatest(),
+        getTrackerStatus(),
+        getMemoryList(),
+        includeMemoryValues ? getMemoriesWithValues() : Promise.resolve([]),
+        getLatestSummary(),
+        Promise.resolve(detectProject(workingDir))
+      ]);
+      
+      const cp = checkpoint as { name?: string; description?: string; state?: Record<string, unknown>; files?: string[] } | null;
+      const tr = tracker as { 
+        projectName?: string; 
+        pendingTodos?: Array<{ content: string }>; 
+        recentChanges?: Array<{ content: string }>;
+        decisions?: Array<{ content: string }>;
+      };
+      
+      // Build compact markdown handoff document
+      let md = `# Session Handoff\n\n`;
+      md += `**Generated:** ${new Date().toISOString()}\n`;
+      md += `**Project:** ${project?.name || 'Unknown'} (${project?.type || 'unknown'})\n`;
+      md += `**Path:** ${workingDir}\n\n`;
+      
+      // Current state from checkpoint
+      if (cp) {
+        md += `## Current State\n`;
+        md += `**Checkpoint:** ${cp.name}\n`;
+        if (cp.description) md += `**Description:** ${cp.description}\n`;
+        if (cp.state) {
+          const state = cp.state;
+          if (state.currentTask) md += `**Current Task:** ${state.currentTask}\n`;
+          if (state.progress) md += `**Progress:** ${state.progress}\n`;
+        }
+        if (cp.files && cp.files.length > 0) {
+          md += `**Modified Files:** ${cp.files.join(', ')}\n`;
+        }
+        md += `\n`;
+      }
+      
+      // Pending todos
+      if (tr.pendingTodos && tr.pendingTodos.length > 0) {
+        md += `## Pending Tasks\n`;
+        for (const todo of tr.pendingTodos) {
+          md += `- [ ] ${todo.content}\n`;
+        }
+        md += `\n`;
+      }
+      
+      // Recent decisions
+      if (tr.decisions && tr.decisions.length > 0) {
+        md += `## Recent Decisions\n`;
+        for (const d of tr.decisions) {
+          md += `- ${d.content}\n`;
+        }
+        md += `\n`;
+      }
+      
+      // Recent changes
+      if (tr.recentChanges && tr.recentChanges.length > 0) {
+        md += `## Recent Changes\n`;
+        for (const c of tr.recentChanges) {
+          md += `- ${c.content}\n`;
+        }
+        md += `\n`;
+      }
+      
+      // Key memories
+      if (includeMemoryValues && memoriesWithValues.length > 0) {
+        md += `## Key Information (Memories)\n`;
+        md += `\`\`\`json\n`;
+        const memObj: Record<string, unknown> = {};
+        for (const m of memoriesWithValues) {
+          memObj[m.key] = m.value;
+        }
+        md += JSON.stringify(memObj, null, 2);
+        md += `\n\`\`\`\n\n`;
+      } else if (Array.isArray(memories) && memories.length > 0) {
+        md += `## Stored Memories\n`;
+        md += `Keys: ${(memories as Array<{ key: string }>).map(m => m.key).join(', ')}\n\n`;
+      }
+      
+      // Latest summary context
+      if (latestSummary) {
+        md += `## Previous Session Summary\n`;
+        if (latestSummary.keyPoints.length > 0) {
+          md += `**Key Points:**\n`;
+          for (const p of latestSummary.keyPoints.slice(0, 5)) {
+            md += `- ${p}\n`;
+          }
+        }
+        if (latestSummary.actionItems.length > 0) {
+          md += `**Action Items:**\n`;
+          for (const a of latestSummary.actionItems.slice(0, 5)) {
+            md += `- ${a}\n`;
+          }
+        }
+        md += `\n`;
+      }
+      
+      // Custom notes
+      if (customNotes) {
+        md += `## Notes\n${customNotes}\n\n`;
+      }
+      
+      // Instructions for new session
+      md += `---\n`;
+      md += `## To Continue\n`;
+      md += `1. Start new session\n`;
+      md += `2. Call \`session_init()\` to load full context\n`;
+      md += `3. Use this handoff as reference for current state\n`;
+      
+      return {
+        content: [{ type: 'text', text: md }]
       };
     }
   );

@@ -39,11 +39,11 @@ Call `checkpoint_save()` with:
 }
 ```
 
-### CONTEXT GETTING LONG? (>60% used)
-1. `context_summarize(text)` - compress conversation
+### CONTEXT GETTING LONG? (>50% used)
+1. `session_handoff()` - generate compact handoff document
 2. `checkpoint_save()` - save state
 3. `memory_set()` - store critical info
-4. `context_status()` - check storage and token usage
+4. Start new session, call `session_init()` to continue
 
 ### BEFORE COMPLETING ANY TASK, VERIFY:
 - [ ] Logged relevant decisions/changes to tracker
@@ -54,10 +54,11 @@ Call `checkpoint_save()` with:
 
 ## TOOL REFERENCE
 
-### Session (startup)
+### Session (startup & handoff)
 | Tool | Description |
 |------|-------------|
 | `session_init(cwd?)` | ONE call to load all context at session start. Returns checkpoint, tracker, memories, project info. |
+| `session_handoff(includeMemoryValues?, customNotes?)` | Generate compact markdown handoff for new session. Use when context >50% |
 | `project_detect(cwd?)` | Auto-detect project from package.json, .git, pyproject.toml, Cargo.toml |
 
 ### Memory (persistent storage)

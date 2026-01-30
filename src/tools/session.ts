@@ -19,27 +19,217 @@ interface SessionState {
   project: ProjectInfo | null;
 }
 
-function detectProject(cwd: string): ProjectInfo | null {
-  // Try package.json first
-  const packageJsonPath = path.join(cwd, 'package.json');
-  if (fs.existsSync(packageJsonPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      return {
-        name: pkg.name || path.basename(cwd),
-        type: pkg.type === 'module' ? 'esm' : 'commonjs',
-        path: cwd,
-        detectedFrom: 'package.json'
-      };
-    } catch {
-      // ignore parse errors
+// Project detection config - easily extensible
+interface ProjectDetector {
+  file: string | string[];  // File(s) to check
+  type: string;             // Project type identifier
+  nameExtractor?: (content: string, filename: string) => string | null;  // Extract project name from file content
+  jsonNameField?: string;   // For JSON files, field to use as name
+}
+
+const PROJECT_DETECTORS: ProjectDetector[] = [
+  // JavaScript/TypeScript (Node.js)
+  {
+    file: 'package.json',
+    type: 'node',
+    jsonNameField: 'name'
+  },
+  // Python
+  {
+    file: 'pyproject.toml',
+    type: 'python',
+    nameExtractor: (content) => content.match(/name\s*=\s*"([^"]+)"/)?.[1] || null
+  },
+  {
+    file: ['setup.py', 'requirements.txt'],
+    type: 'python'
+  },
+  // Rust
+  {
+    file: 'Cargo.toml',
+    type: 'rust',
+    nameExtractor: (content) => content.match(/name\s*=\s*"([^"]+)"/)?.[1] || null
+  },
+  // Go
+  {
+    file: 'go.mod',
+    type: 'go',
+    nameExtractor: (content) => {
+      const match = content.match(/module\s+(\S+)/);
+      return match ? match[1].split('/').pop() || null : null;
+    }
+  },
+  // Java
+  {
+    file: 'pom.xml',
+    type: 'java-maven',
+    nameExtractor: (content) => content.match(/<artifactId>([^<]+)<\/artifactId>/)?.[1] || null
+  },
+  {
+    file: ['build.gradle', 'build.gradle.kts'],
+    type: 'java-gradle'
+  },
+  // PHP
+  {
+    file: 'composer.json',
+    type: 'php',
+    jsonNameField: 'name'
+  },
+  // Ruby
+  {
+    file: ['Gemfile', '*.gemspec'],
+    type: 'ruby'
+  },
+  // Elixir
+  {
+    file: 'mix.exs',
+    type: 'elixir',
+    nameExtractor: (content) => content.match(/app:\s*:(\w+)/)?.[1] || null
+  },
+  // .NET / C#
+  {
+    file: ['*.csproj', '*.fsproj', '*.sln'],
+    type: 'dotnet'
+  },
+  // Swift
+  {
+    file: 'Package.swift',
+    type: 'swift'
+  },
+  // Kotlin
+  {
+    file: 'build.gradle.kts',
+    type: 'kotlin'
+  },
+  // Dart/Flutter
+  {
+    file: 'pubspec.yaml',
+    type: 'dart',
+    nameExtractor: (content) => content.match(/name:\s*(\S+)/)?.[1] || null
+  },
+  // Haskell
+  {
+    file: ['*.cabal', 'stack.yaml'],
+    type: 'haskell'
+  },
+  // Scala
+  {
+    file: 'build.sbt',
+    type: 'scala'
+  },
+  // Clojure
+  {
+    file: ['project.clj', 'deps.edn'],
+    type: 'clojure'
+  },
+  // Lua
+  {
+    file: '*.rockspec',
+    type: 'lua'
+  },
+  // Zig
+  {
+    file: 'build.zig',
+    type: 'zig'
+  },
+  // Nim
+  {
+    file: '*.nimble',
+    type: 'nim'
+  },
+  // V
+  {
+    file: 'v.mod',
+    type: 'vlang'
+  },
+  // Deno
+  {
+    file: 'deno.json',
+    type: 'deno',
+    jsonNameField: 'name'
+  },
+  // Bun
+  {
+    file: 'bunfig.toml',
+    type: 'bun'
+  }
+];
+
+function matchesGlobPattern(filename: string, pattern: string): boolean {
+  if (pattern.includes('*')) {
+    const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+    return regex.test(filename);
+  }
+  return filename === pattern;
+}
+
+function findMatchingFile(cwd: string, patterns: string | string[]): string | null {
+  const patternList = Array.isArray(patterns) ? patterns : [patterns];
+  
+  for (const pattern of patternList) {
+    if (pattern.includes('*')) {
+      // Glob pattern - scan directory
+      try {
+        const files = fs.readdirSync(cwd);
+        for (const file of files) {
+          if (matchesGlobPattern(file, pattern)) {
+            return file;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      // Exact filename
+      if (fs.existsSync(path.join(cwd, pattern))) {
+        return pattern;
+      }
     }
   }
+  return null;
+}
 
-  // Try .git
+function detectProject(cwd: string): ProjectInfo | null {
+  // Try each detector in order
+  for (const detector of PROJECT_DETECTORS) {
+    const matchedFile = findMatchingFile(cwd, detector.file);
+    if (!matchedFile) continue;
+    
+    const filePath = path.join(cwd, matchedFile);
+    let projectName: string | null = null;
+    
+    try {
+      const content = fs.readFileSync(filePath, 'utf-8');
+      
+      // Try JSON name field first
+      if (detector.jsonNameField) {
+        try {
+          const json = JSON.parse(content);
+          projectName = json[detector.jsonNameField] || null;
+        } catch {
+          // Not valid JSON, continue
+        }
+      }
+      
+      // Try name extractor
+      if (!projectName && detector.nameExtractor) {
+        projectName = detector.nameExtractor(content, matchedFile);
+      }
+    } catch {
+      // Can't read file, but file exists
+    }
+    
+    return {
+      name: projectName || path.basename(cwd),
+      type: detector.type,
+      path: cwd,
+      detectedFrom: matchedFile
+    };
+  }
+  
+  // Try .git as fallback
   const gitPath = path.join(cwd, '.git');
   if (fs.existsSync(gitPath)) {
-    // Try to get repo name from git config
     const gitConfigPath = path.join(gitPath, 'config');
     if (fs.existsSync(gitConfigPath)) {
       try {
@@ -63,40 +253,6 @@ function detectProject(cwd: string): ProjectInfo | null {
       path: cwd,
       detectedFrom: 'git-folder'
     };
-  }
-
-  // Try pyproject.toml
-  const pyprojectPath = path.join(cwd, 'pyproject.toml');
-  if (fs.existsSync(pyprojectPath)) {
-    try {
-      const content = fs.readFileSync(pyprojectPath, 'utf-8');
-      const nameMatch = content.match(/name\s*=\s*"([^"]+)"/);
-      return {
-        name: nameMatch ? nameMatch[1] : path.basename(cwd),
-        type: 'python',
-        path: cwd,
-        detectedFrom: 'pyproject.toml'
-      };
-    } catch {
-      // ignore
-    }
-  }
-
-  // Try Cargo.toml (Rust)
-  const cargoPath = path.join(cwd, 'Cargo.toml');
-  if (fs.existsSync(cargoPath)) {
-    try {
-      const content = fs.readFileSync(cargoPath, 'utf-8');
-      const nameMatch = content.match(/name\s*=\s*"([^"]+)"/);
-      return {
-        name: nameMatch ? nameMatch[1] : path.basename(cwd),
-        type: 'rust',
-        path: cwd,
-        detectedFrom: 'Cargo.toml'
-      };
-    } catch {
-      // ignore
-    }
   }
 
   // Fallback to folder name

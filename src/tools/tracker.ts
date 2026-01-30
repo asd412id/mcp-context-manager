@@ -238,6 +238,31 @@ WHEN TO USE:
   );
 
   server.registerTool(
+    'tracker_get',
+    {
+      title: 'Get Tracker Entry',
+      description: 'Get a single tracker entry by ID.',
+      inputSchema: {
+        id: z.string().describe('Entry ID to retrieve')
+      }
+    },
+    async ({ id }) => {
+      const trackerStore = await getTrackerStore();
+      const entry = trackerStore.entries.find(e => e.id === id);
+      
+      if (!entry) {
+        return {
+          content: [{ type: 'text', text: `Entry not found: ${id}` }]
+        };
+      }
+      
+      return {
+        content: [{ type: 'text', text: JSON.stringify(entry, null, 2) }]
+      };
+    }
+  );
+
+  server.registerTool(
     'tracker_set_project',
     {
       title: 'Set Project Name',

@@ -170,50 +170,6 @@ function findRelevantSections(content: string, keywords: string[]): { line: numb
   return results;
 }
 
-function extractCodeStructure(content: string, extension: string): string[] {
-  // Kept for backward compatibility, prefer extractCodeStructureEfficient for large files
-  const structures: string[] = [];
-  const lines = content.split('\n');
-  
-  const patterns: Record<string, RegExp[]> = {
-    '.ts': [
-      /^export\s+(async\s+)?function\s+(\w+)/,
-      /^export\s+(const|let|var)\s+(\w+)/,
-      /^export\s+(class|interface|type|enum)\s+(\w+)/,
-      /^(class|interface|type|enum)\s+(\w+)/,
-      /^(async\s+)?function\s+(\w+)/
-    ],
-    '.js': [
-      /^export\s+(async\s+)?function\s+(\w+)/,
-      /^export\s+(const|let|var)\s+(\w+)/,
-      /^export\s+class\s+(\w+)/,
-      /^class\s+(\w+)/,
-      /^(async\s+)?function\s+(\w+)/,
-      /^(const|let|var)\s+(\w+)\s*=/
-    ],
-    '.py': [
-      /^def\s+(\w+)/,
-      /^class\s+(\w+)/,
-      /^async\s+def\s+(\w+)/
-    ]
-  };
-  
-  const applicablePatterns = patterns[extension] || patterns['.js'];
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    for (const pattern of applicablePatterns) {
-      const match = line.match(pattern);
-      if (match) {
-        structures.push(`L${i + 1}: ${line.substring(0, 80)}${line.length > 80 ? '...' : ''}`);
-        break;
-      }
-    }
-  }
-  
-  return structures;
-}
-
 // Check if path is a symlink and get real path
 async function resolveSymlink(filePath: string): Promise<{ isSymlink: boolean; realPath: string }> {
   try {

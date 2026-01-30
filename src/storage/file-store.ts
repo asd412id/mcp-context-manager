@@ -46,6 +46,10 @@ export class FileStore {
     this.ensureDirSync(this.basePath);
   }
 
+  getBasePath(): string {
+    return this.basePath;
+  }
+
   private ensureDirSync(dirPath: string): void {
     if (!fs.existsSync(dirPath)) {
       fs.mkdirSync(dirPath, { recursive: true });

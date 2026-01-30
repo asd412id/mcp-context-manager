@@ -2,6 +2,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import * as path from 'path';
+import * as fs from 'fs';
+import { fileURLToPath } from 'url';
 import { initStore } from './storage/file-store.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerSummarizerTools } from './tools/summarizer.js';
@@ -13,7 +15,20 @@ import { registerContextTools } from './tools/context.js';
 import { registerPrompts } from './prompts.js';
 
 const SERVER_NAME = 'mcp-context-manager';
-const SERVER_VERSION = '1.0.9';
+
+function getPackageVersion(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const packagePath = path.join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+    return pkg.version || '1.0.0';
+  } catch {
+    return '1.0.0';
+  }
+}
+
+const SERVER_VERSION = getPackageVersion();
 
 async function main() {
   const contextPath = process.env.MCP_CONTEXT_PATH || path.join(process.cwd(), '.context');

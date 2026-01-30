@@ -390,10 +390,11 @@ WHEN TO USE:
       inputSchema: {
         key: z.string().describe('Key of memory to update'),
         value: z.unknown().describe('Value to merge/update with'),
-        merge: z.boolean().optional().describe('If true, deep merge objects. If false, replace value entirely (default: true)')
+        merge: z.boolean().optional().describe('If true, deep merge objects. If false, replace value entirely (default: true)'),
+        tags: z.array(z.string()).optional().describe('Update tags (replaces existing tags if provided)')
       }
     },
-    async ({ key, value, merge = true }) => {
+    async ({ key, value, merge = true, tags }) => {
       const memStore = await getMemoryStore();
       const entry = memStore.entries[key];
       
@@ -421,13 +422,18 @@ WHEN TO USE:
         entry.value = value;
       }
       
+      // Update tags if provided
+      if (tags !== undefined) {
+        entry.tags = tags;
+      }
+      
       entry.updatedAt = now;
       await saveMemoryStore(memStore);
       
       return {
         content: [{ 
           type: 'text', 
-          text: `Memory updated: "${key}"${merge ? ' (merged)' : ' (replaced)'}`
+          text: `Memory updated: "${key}"${merge ? ' (merged)' : ' (replaced)'}${tags !== undefined ? ' (tags updated)' : ''}`
         }]
       };
     }

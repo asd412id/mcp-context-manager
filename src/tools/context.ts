@@ -114,7 +114,7 @@ WHEN TO USE:
     async ({ conversationText }) => {
       // Get context path from store
       const store = getStore();
-      const basePath = (store as unknown as { basePath: string }).basePath;
+      const basePath = store.getBasePath();
       
       // Get store statistics
       const storeStats = await getStoreStats(basePath);
@@ -182,7 +182,7 @@ WHEN TO USE:
     },
     async () => {
       const store = getStore();
-      const basePath = (store as unknown as { basePath: string }).basePath;
+      const basePath = store.getBasePath();
       
       const issues: string[] = [];
       const recommendations: string[] = [];

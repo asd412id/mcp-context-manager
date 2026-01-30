@@ -1,0 +1,47 @@
+{
+  "name": "@asd412id/mcp-context-manager",
+  "version": "1.0.6",
+  "description": "MCP tools for context management - summarizer, memory store, project tracker, checkpoints, and smart file loader",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-context-manager": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "context",
+    "ai",
+    "memory",
+    "llm",
+    "model-context-protocol",
+    "claude",
+    "anthropic"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

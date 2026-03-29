@@ -453,3 +453,31 @@ GitHub will automatically:
 - Group changes by category (Features, Fixes, Security, Tests, Maintenance)
 - Use a consistent bullet format
 - Include contributor list
+
+### Safe Release Procedure (Required)
+
+To avoid duplicate/dirty npm versions, follow this strict flow:
+
+```bash
+# 1) Ensure package version already final in package.json
+node -p "require('./package.json').version"
+
+# 2) Push commit first
+git push origin master
+
+# 3) Create release tag matching package version exactly
+gh release create vX.Y.Z --target master --generate-notes
+
+# 4) WAIT until publish workflow completes
+gh run list --workflow publish.yml --limit 5
+gh run watch <run-id> --exit-status
+
+# 5) Verify npm registry
+npm view @asd412id/mcp-context-manager version --registry=https://registry.npmjs.org
+npm view @asd412id/mcp-context-manager@X.Y.Z version --registry=https://registry.npmjs.org
+```
+
+Rules:
+- Never create next release tag before previous publish run is finished
+- Tag version must equal `package.json` version
+- If publish run fails, fix root cause first; do not spam patch releases

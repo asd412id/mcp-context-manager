@@ -8,16 +8,52 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Validate release tag and package version
+        shell: bash
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag format: $TAG (expected vX.Y.Z)"
+            exit 1
+          fi
+
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${TAG#v}"
+
+          echo "Tag version: $TAG_VERSION"
+          echo "Package version: $PKG_VERSION"
+
+          if [[ "$PKG_VERSION" != "$TAG_VERSION" ]]; then
+            echo "Tag/package mismatch. Refusing publish."
+            exit 1
+          fi
+
+      - name: Ensure version not already published
+        shell: bash
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if npm view "$PKG_NAME@$PKG_VERSION" version --registry=https://registry.npmjs.org > /dev/null 2>&1; then
+            echo "Version $PKG_VERSION already published on npm. Refusing duplicate publish."
+            exit 1
+          fi
 
       # Ensure npm 11.5.1 or later for trusted publishing
       - name: Update npm

@@ -6,6 +6,7 @@ dist/
 
 # Context Manager data (local per machine)
 .context/
+.context.bak/
 
 # IDE
 .vscode/

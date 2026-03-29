@@ -106,6 +106,99 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
   return result;
 }
 
+interface MemoryCandidate {
+  key: string;
+  value: string;
+  tags: string[];
+  confidence: number;
+  reason: string;
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36) || 'item';
+}
+
+function buildMemoryCandidates(text: string, source: string, baseTags: string[]): MemoryCandidate[] {
+  const candidates: MemoryCandidate[] = [];
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+
+    if (lower.includes('decision:') || lower.includes('decided to')) {
+      const subject = line.replace(/^.*?(decision:\s*|decided to\s*)/i, '').trim() || line;
+      candidates.push({
+        key: `decision.${slugify(subject)}`,
+        value: line,
+        tags: [...baseTags, source, 'decision'],
+        confidence: 0.92,
+        reason: 'decision signal'
+      });
+    }
+
+    if (lower.includes('todo:') || lower.includes('action:') || lower.includes('must ')) {
+      const subject = line.replace(/^.*?(todo:\s*|action:\s*|must\s*)/i, '').trim() || line;
+      candidates.push({
+        key: `todo.${slugify(subject)}`,
+        value: line,
+        tags: [...baseTags, source, 'todo'],
+        confidence: 0.86,
+        reason: 'actionable item signal'
+      });
+    }
+
+    if (lower.includes('error') || lower.includes('failed') || lower.includes('exception')) {
+      candidates.push({
+        key: `error.${slugify(line)}`,
+        value: line,
+        tags: [...baseTags, source, 'error'],
+        confidence: 0.9,
+        reason: 'error signal'
+      });
+    }
+
+    if (/\bhttps?:\/\//i.test(line)) {
+      candidates.push({
+        key: `reference.url.${slugify(line)}`,
+        value: line,
+        tags: [...baseTags, source, 'reference'],
+        confidence: 0.8,
+        reason: 'url reference signal'
+      });
+    }
+
+    const configMatch = line.match(/\b([A-Z][A-Z0-9_]{2,})\s*[=:]\s*(.+)$/);
+    if (configMatch) {
+      candidates.push({
+        key: `config.${slugify(configMatch[1])}`,
+        value: line,
+        tags: [...baseTags, source, 'config'],
+        confidence: 0.84,
+        reason: 'config/env signal'
+      });
+    }
+  }
+
+  const dedup = new Map<string, MemoryCandidate>();
+  for (const candidate of candidates) {
+    const existing = dedup.get(candidate.key);
+    if (!existing || candidate.confidence > existing.confidence) {
+      dedup.set(candidate.key, candidate);
+    }
+  }
+
+  return Array.from(dedup.values());
+}
+
+export const __memoryTestables = {
+  slugify,
+  buildMemoryCandidates
+};
+
 export function registerMemoryTools(server: McpServer): void {
   server.registerTool(
     'memory_set',
@@ -246,6 +339,73 @@ WHEN TO USE:
           text: results.length > 0 
             ? JSON.stringify(output, null, 2)
             : 'No memories found matching criteria'
+        }]
+      };
+    }
+  );
+
+  server.registerTool(
+    'memory_capture_candidates',
+    {
+      title: 'Memory Capture Candidates',
+      description: `Extract and optionally persist important memory candidates from raw text.
+WHEN TO USE:
+- After long tool outputs to store decisions/errors/todos automatically
+- Before pruning context to avoid losing important details
+- For proactive memory capture workflows`,
+      inputSchema: {
+        text: z.string().describe('Raw text to analyze for memory candidates'),
+        source: z.string().optional().describe('Source label for extracted candidates (default: llm)'),
+        autoTags: z.array(z.string()).optional().describe('Additional tags to include on all candidates'),
+        maxCandidates: z.number().optional().describe('Maximum number of candidates to return/store (default: 10)'),
+        dryRun: z.boolean().optional().describe('If true, only preview candidates without persisting')
+      }
+    },
+    async ({ text, source = 'llm', autoTags = [], maxCandidates = 10, dryRun = true }) => {
+      const candidates = buildMemoryCandidates(text, source, autoTags).slice(0, maxCandidates);
+
+      if (candidates.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No important memory candidates detected' }]
+        };
+      }
+
+      if (dryRun) {
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({ dryRun: true, count: candidates.length, candidates }, null, 2)
+          }]
+        };
+      }
+
+      const memStore = await getMemoryStore();
+      const now = new Date().toISOString();
+      const savedKeys: string[] = [];
+
+      for (const candidate of candidates) {
+        const existing = memStore.entries[candidate.key];
+        memStore.entries[candidate.key] = {
+          key: candidate.key,
+          value: candidate.value,
+          tags: candidate.tags,
+          createdAt: existing?.createdAt || now,
+          updatedAt: now
+        };
+        savedKeys.push(candidate.key);
+      }
+
+      await saveMemoryStore(memStore);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            dryRun: false,
+            savedCount: savedKeys.length,
+            savedKeys,
+            candidates
+          }, null, 2)
         }]
       };
     }

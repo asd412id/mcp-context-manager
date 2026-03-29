@@ -381,10 +381,11 @@ WHEN TO USE: Call this ONCE at the START of every session/conversation.
 Returns: latest checkpoint, tracker status (todos/decisions), all memories, and auto-detected project info.
 This replaces calling checkpoint_load(), tracker_status(), and memory_list() separately.`,
       inputSchema: {
-        cwd: z.string().optional().describe('Current working directory for project detection (defaults to process.cwd())')
+        cwd: z.string().optional().describe('Current working directory for project detection (defaults to process.cwd())'),
+        verbose: z.boolean().optional().describe('Include full checkpoint/tracker/memory payload (default: false)')
       }
     },
-    async ({ cwd }) => {
+    async ({ cwd, verbose = false }) => {
       const workingDir = cwd || process.cwd();
       
       // Cleanup expired memories first
@@ -423,13 +424,38 @@ This replaces calling checkpoint_load(), tracker_status(), and memory_list() sep
         cleanedUpExpiredMemories: cleanedUp
       };
       
+      const output = verbose
+        ? { summary, ...state }
+        : {
+            summary,
+            checkpoint: checkpoint
+              ? {
+                  id: (checkpoint as { id?: string }).id,
+                  name: (checkpoint as { name?: string }).name,
+                  createdAt: (checkpoint as { createdAt?: string }).createdAt,
+                  files: (checkpoint as { files?: string[] }).files || []
+                }
+              : null,
+            tracker: {
+              projectName: (tracker as { projectName?: string }).projectName,
+              pendingTodos: (tracker as { pendingTodos?: unknown[] }).pendingTodos || [],
+              recentChanges: (tracker as { recentChanges?: unknown[] }).recentChanges || [],
+              decisions: (tracker as { decisions?: unknown[] }).decisions || []
+            },
+            memories: Array.isArray(memories)
+              ? (memories as Array<{ key: string; tags?: string[]; updatedAt?: string }>).map((m) => ({
+                  key: m.key,
+                  tags: m.tags || [],
+                  updatedAt: m.updatedAt
+                }))
+              : [],
+            project
+          };
+
       return {
         content: [{ 
           type: 'text', 
-          text: JSON.stringify({
-            summary,
-            ...state
-          }, null, 2)
+          text: JSON.stringify(output, null, 2)
         }]
       };
     }

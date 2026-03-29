@@ -7,22 +7,24 @@ const CONTEXT_MANAGEMENT_INSTRUCTIONS = `
 
 **To minimize context window usage and free RAM:**
 
-1. **Offload to persistent storage** - Don't keep data in context, use memory_set() then memory_get()
-2. **Read files efficiently** - Use file_smart_read(structureOnly:true) or file_smart_read(keywords:[...])
-3. **Compress verbose content** - Use context_summarize() for long text
-4. **Checkpoint regularly** - Save state every 10-15 messages with checkpoint_save()
+1. **Recall before reading** - Use memory_search()/tracker_search() first, then read files only if needed
+2. **Offload to persistent storage** - Use memory_set() or memory_capture_candidates() for important findings
+3. **Read files efficiently** - Use file_smart_read(structureOnly:true) or file_smart_read(keywords:[...])
+4. **Smart prune context** - Use context_prune_smart() to keep high-signal items and prune low-signal chatter
+5. **Checkpoint regularly** - Save state every 10-15 messages with checkpoint_save()
 
 **When to cleanup (check with context_status()):**
-- Token usage >50% → Summarize verbose content
+- Token usage >50% → Run context_prune_smart() and summarize verbose content
 - Token usage >70% → Checkpoint and consider handoff
 - Token usage >85% → MUST handoff to new session
 
 **Cleanup workflow:**
 1. context_status() → Check token usage
-2. context_summarize(longText) → Compress content
-3. memory_set(key, data) → Offload to storage
-4. checkpoint_save() → Save state
-5. session_handoff() → Generate handoff doc
+2. context_prune_smart(items, mode:"hybrid") → Score and prune low-signal context
+3. context_summarize(longText) → Compress high-value verbose content
+4. memory_capture_candidates(text, dryRun:false) → Persist important facts automatically
+5. checkpoint_save() → Save state
+6. session_handoff() → Generate handoff doc
 `;
 
 export function registerPrompts(server: McpServer): void {
@@ -45,7 +47,8 @@ ${CONTEXT_MANAGEMENT_INSTRUCTIONS}
 **After init, follow these rules:**
 - Log decisions with tracker_log(type:"decision")
 - Log file changes with tracker_log(type:"change")
-- Store important info with memory_set()
+- Capture important findings with memory_capture_candidates() or memory_set()
+- Prune processed context with context_prune_smart()
 - Checkpoint every 10-15 messages`
         }
       }]
@@ -166,7 +169,7 @@ ${CONTEXT_MANAGEMENT_INSTRUCTIONS}
         role: 'user',
         content: {
           type: 'text',
-          text: `Context getting long. Summarize conversation with context_summarize(), save checkpoint, store key info to memory.`
+          text: `Context getting long. Run context_prune_smart() first, summarize with context_summarize(), persist key info via memory_capture_candidates(), then save checkpoint.`
         }
       }]
     })
@@ -212,15 +215,16 @@ ${CONTEXT_MANAGEMENT_INSTRUCTIONS}
 **Execute this workflow:**
 1. context_status() → Check current token usage estimate
 2. Identify verbose content in conversation that can be summarized
-3. context_summarize(verboseText, maxLength:1000) → Compress long content
-4. memory_set(key, importantData) → Offload important data to persistent storage
-5. checkpoint_save(name, state) → Save current session state
-6. If token usage >70%, run session_handoff() to prepare for new session
+3. context_prune_smart(items, mode:"hybrid") → Keep high-signal and prune low-signal context
+4. context_summarize(verboseText, maxLength:1000) → Compress long content
+5. memory_capture_candidates(text, dryRun:false) → Offload important data automatically
+6. checkpoint_save(name, state) → Save current session state
+7. If token usage >70%, run session_handoff() to prepare for new session
 
 **Tips to reduce context:**
 - Use file_smart_read(structureOnly:true) instead of reading full files
 - Use file_smart_read(keywords:[...]) to read only relevant sections
-- Store discovered info in memory_set() instead of keeping in context
+- Store discovered info in memory_capture_candidates()/memory_set() instead of keeping in context
 - Don't re-read files - use memory_get() for cached data`
         }
       }]

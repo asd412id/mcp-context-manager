@@ -278,7 +278,7 @@ To specify a custom path for storing context data, add environment variables.
 | `ctx-cleanup` | **Free up context window space and reduce RAM usage** |
 | `ctx-handoff` | **Generate handoff document for new session** |
 
-## Available Tools (31 tools)
+## Available Tools (33 tools)
 
 ### Session Management
 
@@ -300,6 +300,7 @@ To specify a custom path for storing context data, add environment variables.
 | `memory_list` | List all memory keys |
 | `memory_clear` | Clear memory (all/by tags) |
 | `memory_cleanup` | Remove expired memory entries |
+| `memory_capture_candidates` | Extract and optionally persist important memory candidates from text |
 
 ### Context Summarizer
 
@@ -310,6 +311,7 @@ To specify a custom path for storing context data, add environment variables.
 | `context_list_summaries` | List all summaries |
 | `context_merge_summaries` | Merge multiple summaries |
 | `context_status` | Get storage stats and token usage estimate |
+| `context_prune_smart` | Score context items, keep high-signal, summarize/prune low-signal |
 | `store_health` | Check store integrity and recommendations |
 
 ### Project Tracker

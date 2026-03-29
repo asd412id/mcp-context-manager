@@ -1,0 +1,47 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - dependencies
+      - duplicate
+      - invalid
+      - question
+      - wontfix
+  categories:
+    - title: "🚀 Features"
+      labels:
+        - feature
+        - enhancement
+        - feat
+    - title: "🐛 Fixes"
+      labels:
+        - fix
+        - bug
+        - bugfix
+    - title: "🔒 Security"
+      labels:
+        - security
+    - title: "🧪 Tests"
+      labels:
+        - test
+        - tests
+        - qa
+    - title: "🧰 Maintenance"
+      labels:
+        - chore
+        - refactor
+        - docs
+        - ci
+        - release
+    - title: "📦 Dependencies"
+      labels:
+        - dependencies
+        - deps
+change-template: "- $TITLE by @$AUTHOR in #$NUMBER"
+change-title-escapes: "<*_&"
+template: |
+  ## Summary
+  $CHANGES
+
+  ## Contributors
+  $CONTRIBUTORS

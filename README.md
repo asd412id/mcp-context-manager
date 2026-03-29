@@ -436,3 +436,20 @@ MIT
 ## Contributing
 
 Issues and PRs welcome at [GitHub](https://github.com/asd412id/mcp-context-manager)
+
+## Release Notes Automation
+
+This repository includes `.github/release.yml` to standardize generated release notes.
+
+### How to Create a Clean Release Note
+
+Use GitHub auto-generated notes (CLI):
+
+```bash
+gh release create vX.Y.Z --target master --generate-notes
+```
+
+GitHub will automatically:
+- Group changes by category (Features, Fixes, Security, Tests, Maintenance)
+- Use a consistent bullet format
+- Include contributor list

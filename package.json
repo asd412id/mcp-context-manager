@@ -1,6 +1,6 @@
 {
   "name": "@asd412id/mcp-context-manager",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "MCP tools for context management - summarizer, memory store, project tracker, checkpoints, and smart file loader",
   "type": "module",
   "main": "dist/index.js",
@@ -9,7 +9,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "SKILL.md"
   ],
   "scripts": {
     "build": "tsc",

@@ -21,7 +21,7 @@ This single call replaces `checkpoint_load()`, `tracker_status()`, and `memory_l
 | Modified ANY file | `tracker_log(type:"change")` | "Updated api.ts" |
 | User says TODO/task/fix | `tracker_log(type:"todo")` | "Add validation" |
 | Error/bug occurred | `tracker_log(type:"error")` | "Build failed: missing dep" |
-| Found important info | `memory_set(key, value, tags)` | API endpoints, configs |
+| Found important info | `memory_capture_candidates(text)` or `memory_set(key, value, tags)` | API endpoints, configs |
 | User asks to remember | `memory_set()` | "Remember: API key is..." |
 
 ### BEFORE READING FILES:
@@ -58,8 +58,9 @@ Call `checkpoint_save()` with:
 | Strategy | How | Tool |
 |----------|-----|------|
 | Offload file contents | Don't keep full file in context, re-read when needed | `file_smart_read(keywords:[...])` |
+| Smart prune context | Score relevance and prune low-signal context | `context_prune_smart(items, mode)` |
 | Compress conversations | Summarize long discussions, discard verbose text | `context_summarize(text, maxLength)` |
-| Store data externally | Save important info to memory, reference by key | `memory_set()` then `memory_get()` |
+| Store data externally | Save important info to memory, reference by key | `memory_capture_candidates()` / `memory_set()` then `memory_get()` |
 | Checkpoint state | Save full state, start fresh session | `checkpoint_save()` + `session_handoff()` |
 | Read structure only | Get file outline, not full content | `file_smart_read(structureOnly:true)` |
 | Selective reading | Read only specific lines | `file_smart_read(startLine, endLine)` |
@@ -71,19 +72,20 @@ Call `checkpoint_save()` with:
 
 **Cleanup workflow:**
 ```
-1. context_status(conversationText)  -> Check token usage estimate
-2. context_summarize(longText)       -> Compress verbose content
-3. memory_set(key, importantData)    -> Offload to persistent storage
-4. checkpoint_save(name, state)      -> Save full session state
-5. session_handoff()                 -> Generate compact handoff doc
-6. [Start new session]
-7. session_init()                    -> Restore context efficiently
+1. context_status(conversationText)              -> Check token usage estimate
+2. context_prune_smart(items, mode:"hybrid")    -> Keep high-signal and prune low-signal context
+3. context_summarize(longText)                   -> Compress verbose content
+4. memory_capture_candidates(text, dryRun:false) -> Offload important data to persistent storage
+5. checkpoint_save(name, state)                  -> Save full session state
+6. session_handoff()                             -> Generate compact handoff doc
+7. [Start new session]
+8. session_init()                                -> Restore context efficiently
 ```
 
 **Best practices for minimal context usage:**
 - Use `file_smart_read(structureOnly:true)` before reading full files
 - Use `file_smart_read(keywords:[...])` to read only relevant sections
-- Store discovered info in `memory_set()` instead of keeping in context
+- Store discovered info in `memory_capture_candidates()` / `memory_set()` instead of keeping in context
 - Summarize tool outputs if they're verbose
 - Don't re-read files unnecessarily - use `memory_get()` for cached data
 
@@ -99,7 +101,7 @@ Call `checkpoint_save()` with:
 ### Session (startup & handoff)
 | Tool | Description |
 |------|-------------|
-| `session_init(cwd?)` | ONE call to load all context at session start. Returns checkpoint, tracker, memories, project info. |
+| `session_init(cwd?, verbose?)` | ONE call to load all context at session start. Default returns compact summary; set verbose:true for full payload. |
 | `session_handoff(includeMemoryValues?, customNotes?)` | Generate compact markdown handoff for new session. Use when context >50% |
 | `project_detect(cwd?)` | Auto-detect project (supports 20+ languages: Node, Python, Rust, Go, Java, PHP, Ruby, etc.) |
 
@@ -114,6 +116,7 @@ Call `checkpoint_save()` with:
 | `memory_delete(key)` | Delete a memory entry |
 | `memory_clear(tags?, dryRun?)` | Clear memories. Use dryRun:true to preview |
 | `memory_cleanup()` | Remove expired entries |
+| `memory_capture_candidates(text, source?, autoTags?, maxCandidates?, dryRun?)` | Extract and optionally persist important memory candidates from text |
 
 ### Tracker (project tracking)
 | Tool | Description |
@@ -144,6 +147,7 @@ Call `checkpoint_save()` with:
 | `context_list_summaries(sessionId?, limit?)` | List summaries |
 | `context_merge_summaries(ids, maxLength?)` | Combine multiple summaries |
 | `context_status(conversationText?)` | Get storage stats and token estimate |
+| `context_prune_smart(items, mode?, maxKeep?, summaryMaxLength?, memoryCandidateLimit?)` | Score context, keep high-signal, summarize/prune low-signal, suggest memory candidates |
 | `store_health()` | Check store integrity and get recommendations |
 
 ### File (smart reading)
